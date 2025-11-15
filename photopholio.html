@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Photofolio — Responsive Image Gallery</title>
+  <meta name="description" content="Responsive masonry image gallery with lazy-loading and smooth transitions." />
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <style>
+   
+    :root{
+      --bg:#071029;
+      --card:#071827;
+      --muted:#9fb0c7;
+      --accent:#ffd166;
+      --gap:14px;
+      --max-width:1200px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;background:linear-gradient(180deg,#031024,#071827);color:#eaf3ff;min-height:100vh}
+    .wrap{max-width:var(--max-width);margin:36px auto;padding:20px}
+
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    h1{font-size:20px;margin:0}
+    p.lead{margin:4px 0 0;color:var(--muted);font-size:14px}
+
+    
+    .controls{display:flex;gap:10px;align-items:center}
+    .search{padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .filter{padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--muted);cursor:pointer}
+
+    
+    .gallery{
+      column-width:280px;
+      column-gap:var(--gap);
+      width:100%;
+    }
+    .item{
+      display:inline-block;
+      width:100%;
+      margin:0 0 var(--gap);
+      border-radius:10px;
+      overflow:hidden;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      box-shadow:0 6px 18px rgba(2,6,23,0.6);
+      transform-origin:center;
+    }
+    .item img{
+      width:100%;
+      height:auto;
+      display:block;
+      transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .35s ease;
+      will-change:transform,opacity;
+      opacity:0;
+    }
+    .item.loaded img{opacity:1}
+    .item:hover img{transform:scale(1.03)}
+
+    .caption{padding:10px 12px;color:var(--muted);font-size:13px}
+
+  
+    .lightbox{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(2,6,23,0.6),rgba(2,6,23,0.85));z-index:1200}
+    .lightbox.open{display:flex}
+    .lightbox img{max-width:92vw;max-height:92vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,0.6)}
+    .lb-close{position:absolute;top:24px;right:24px;background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:8px 10px;border-radius:8px;cursor:pointer}
+
+    
+    @media (max-width:900px){
+      .gallery{column-width:220px}
+    }
+    @media (max-width:600px){
+      .gallery{column-width:160px}
+      header{flex-direction:column;align-items:flex-start;gap:10px}
+    }
+
+   
+    .muted{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Photofolio</h1>
+        <p class="lead">Responsive masonry gallery — lazy-loading, progressive images, and a lightweight lightbox.</p>
+      </div>
+
+      <div class="controls">
+        <input class="search" id="search" placeholder="Search by tag or title" />
+        <button class="filter" data-filter="all">All</button>
+        <button class="filter" data-filter="landscape">Landscape</button>
+        <button class="filter" data-filter="portrait">Portrait</button>
+        <button class="filter" data-filter="architecture">Architecture</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="gallery" id="gallery">
+       
+      </section>
+    </main>
+  </div>
+
+  
+  <div class="lightbox" id="lightbox" aria-hidden="true">
+    <button class="lb-close" id="lbClose">Close</button>
+    <img id="lbImage" alt="" />
+  </div>
+
+  <script>
+   
+    (function(){
+      const images = [
+        {id:1, title:'Pink mountains', tags:['landscape'], src:'https://media.istockphoto.com/id/1381637603/photo/mountain-landscape.jpg?s=612x612&w=0&k=20&c=w64j3fW8C96CfYo3kbi386rs_sHH_6BGe8lAAAFS-y4='},
+        {id:2, title:'Taj Mahal', tags:['architecture'], src:'https://vj-prod-website-cms.s3.ap-southeast-1.amazonaws.com/zz-1715746120819.jpg'},
+        {id:3, title:'Quiet lake', tags:['landscape'], src:'https://media.macphun.com/img/uploads/customer/blog/504/15360610675b8e6e8b52bd36.49629027.jpg?q=85&w=1680'},
+        {id:4, title:'Road to the mighty', tags:['portrait'], src:'https://i.pinimg.com/236x/98/a4/6e/98a46eceea66b15aa939fd1f6054d608.jpg'},
+        {id:5, title:'Desert road', tags:['landscape'], src:'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3&s=5'},
+        {id:6, title:'Beijing national stadium', tags:['architecture'], src:'https://lp-cms-production.imgix.net/2024-03/shutterstock60333574.jpg?auto=format,compress&q=72&w=1440&h=810&fit=crop'},
+        {id:7, title:'Forest close', tags:['landscape'], src:'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3&s=7'},
+        {id:8, title:'Lush countryside', tags:['portrait'], src:'https://plus.unsplash.com/premium_photo-1676236246841-58ce7f9004a0?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8YmVhdXRpZnVsJTIwbGFuZHNjYXBlfGVufDB8fDB8fHww'},
+        {id:9, title:'Sydney Opera house', tags:['architecture'], src:'https://lp-cms-production.imgix.net/2024-03/500pxRF114087897.jpg?auto=format,compress&q=72&fit=crop&w=1200'},
+        {id:10, title:'Upside down', tags:['landscape'], src:'https://www.shutterstock.com/image-photo/banff-national-park-lake-minnewanka-600nw-2527379207.jpg'}
+      ];
+
+      const gallery = document.getElementById('gallery');
+      const searchEl = document.getElementById('search');
+      const filters = Array.from(document.querySelectorAll('.filter'));
+
+      function render(list){
+        gallery.innerHTML = '';
+        list.forEach(img => {
+          const item = document.createElement('article');
+          item.className = 'item';
+          item.dataset.id = img.id;
+          item.dataset.tags = img.tags.join(' ');
+
+          
+          const picture = document.createElement('picture');
+
+          
+          const small = document.createElement('img');
+          small.dataset.src = img.src.replace('w=1600', 'w=60');
+          small.alt = img.title;
+          small.loading = 'lazy';
+          small.className = 'preview';
+
+          const full = document.createElement('img');
+          full.dataset.src = img.src; 
+          full.alt = img.title;
+          full.loading = 'lazy';
+
+          picture.appendChild(small);
+          picture.appendChild(full);
+
+          item.appendChild(picture);
+
+          const cap = document.createElement('div');
+          cap.className = 'caption';
+          cap.textContent = img.title;
+          item.appendChild(cap);
+
+          
+          item.addEventListener('click', (e)=>{
+            openLightbox(img.src, img.title);
+          });
+
+          gallery.appendChild(item);
+        });
+
+        
+        initLazyLoad();
+      }
+
+      
+      let currentFilter = 'all';
+      function applyFilter(){
+        const q = searchEl.value.trim().toLowerCase();
+        const list = images.filter(i => {
+          if (currentFilter !== 'all' && !i.tags.includes(currentFilter)) return false;
+          if (q && !i.title.toLowerCase().includes(q) && !i.tags.join(' ').includes(q)) return false;
+          return true;
+        });
+        render(list);
+      }
+
+      filters.forEach(btn => {
+        btn.addEventListener('click', ()=>{
+          filters.forEach(b=>b.classList.remove('active'));
+          btn.classList.add('active');
+          currentFilter = btn.dataset.filter;
+          applyFilter();
+        });
+      });
+
+      searchEl.addEventListener('input', () => applyFilter());
+
+      
+      let io;
+      function initLazyLoad(){
+        if (io) io.disconnect();
+        const imgs = gallery.querySelectorAll('img[data-src]');
+        const options = {root:null,rootMargin:'200px',threshold:0.01};
+        io = new IntersectionObserver((entries, observer) => {
+          entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
+            const img = entry.target;
+          
+            if (img.dataset.src) {
+              img.src = img.dataset.src;
+              img.removeAttribute('data-src');
+              img.addEventListener('load', ()=>{
+                const parent = img.closest('.item');
+                
+                if(parent) parent.classList.add('loaded');
+              }, {once:true});
+            }
+            observer.unobserve(img);
+          });
+        }, options);
+
+        imgs.forEach(i => io.observe(i));
+      }
+
+      
+      const lightbox = document.getElementById('lightbox');
+      const lbImage = document.getElementById('lbImage');
+      const lbClose = document.getElementById('lbClose');
+
+      function openLightbox(src, title){
+        lbImage.src = src;
+        lbImage.alt = title || '';
+        lightbox.classList.add('open');
+        lightbox.setAttribute('aria-hidden', 'false');
+      }
+      function closeLightbox(){
+        lightbox.classList.remove('open');
+        lightbox.setAttribute('aria-hidden', 'true');
+        lbImage.src = '';
+      }
+      lbClose.addEventListener('click', closeLightbox);
+      lightbox.addEventListener('click', (e)=>{ if(e.target === lightbox) closeLightbox(); });
+      window.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeLightbox(); });
+
+      render(images);
+
+     
+      window.addEventListener('keydown', (e)=>{ if(e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA'){ e.preventDefault(); searchEl.focus(); } });
+
+    })();
+  </script>
+</body>
+</html>
